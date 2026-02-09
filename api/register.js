@@ -1,54 +1,38 @@
 const sql = require("./_db");
 const bcrypt = require("bcryptjs");
 
-async function getBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", chunk => body += chunk);
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(body));
-      } catch {
-        resolve({});
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    // ===== VERCEL FIX =====
-    const body = await getBody(req);
-    const { email, password, name } = body;
 
-    if (!email || !password || !name)
-      return res.status(400).json({ error: "Semua field wajib diisi" });
+    // ⭐ FIX BODY PARSE
+    let body = req.body;
+    if (typeof body === "string") {
+      body = JSON.parse(body);
+    }
 
-    // cek email sudah ada
-    const existing = await sql`
-      SELECT id FROM users WHERE email = ${email};
-    `;
+    const { username, password } = body;
 
-    if (existing.length > 0)
-      return res.status(400).json({ error: "Email sudah terdaftar" });
+    if (!username || !password)
+      return res.status(400).json({ error: "Username & password required" });
 
-    // hash password
     const hash = await bcrypt.hash(password, 10);
 
-    // insert user
     await sql`
-      INSERT INTO users (email, password, name)
-      VALUES (${email}, ${hash}, ${name});
+      INSERT INTO users (username, password)
+      VALUES (${username}, ${hash});
     `;
 
-    return res.status(200).json({ success: true });
+    res.status(200).json({ message: "User created" });
 
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.log("REGISTER ERROR:", err); // penting buat debug
+
+    if (err.message && err.message.includes("duplicate"))
+      return res.status(400).json({ error: "Username already exists" });
+
+    res.status(500).json({ error: "Internal server error" });
   }
 };
