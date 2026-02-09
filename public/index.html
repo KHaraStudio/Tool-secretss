@@ -72,41 +72,45 @@
             const [error, setError] = useState('');
 
             const handleLogin = async (e) => {
-                e.preventDefault();
-                setError('');
-                setLoading(true);
+e.preventDefault();
+setError('');
+setLoading(true);
 
-                try {
-                    const response = await fetch(`${API_URL}/api/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    });
+try {
+    const response = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: email,   // <-- penting
+            password: password
+        })
+    });
 
-                    const data = await response.json();
+    const data = await response.json();
 
-                    if (data.success) {
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-                        setToken(data.token);
-                        setUser(data.user);
-                        setCurrentPage('app');
-                    } else {
-                        setError(data.error);
-                    }
-                } catch (error) {
-                    setError('Terjadi kesalahan. Silakan coba lagi.');
-                } finally {
-                    setLoading(false);
-                }
-            };
+    if (data.success) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setToken(data.token);
+        setUser(data.user);
+        setCurrentPage('app');
+    } else {
+        setError(data.error || 'Login gagal');
+    }
+} catch (error) {
+    setError('Terjadi kesalahan. Silakan coba lagi.');
+} finally {
+    setLoading(false);
+}
+
+};
 
             return (
                 <div className="max-w-md mx-auto mt-20">
                     <div className="bg-white rounded-2xl shadow-xl p-8">
                         <div className="text-center mb-8">
                             <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                                📝 Aplikasi Catatan
+                                📝 Aplikasi Notes
                             </h1>
                             <p className="text-gray-600">Masuk ke akun Anda</p>
                         </div>
@@ -181,42 +185,47 @@
             const [error, setError] = useState('');
 
             const handleRegister = async (e) => {
-                e.preventDefault();
-                setError('');
+e.preventDefault();
+setError('');
 
-                if (password !== confirmPassword) {
-                    setError('Password tidak cocok');
-                    return;
-                }
+if (password !== confirmPassword) {
+    setError('Password tidak cocok');
+    return;
+}
 
-                if (password.length < 6) {
-                    setError('Password minimal 6 karakter');
-                    return;
-                }
+if (password.length < 6) {
+    setError('Password minimal 6 karakter');
+    return;
+}
 
-                setLoading(true);
+setLoading(true);
 
-                try {
-                    const response = await fetch(`${API_URL}/api/register`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password, name })
-                    });
+try {
+    const response = await fetch(`${API_URL}/api/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            username: email,   
+            password: password
+        })
+    });
 
-                    const data = await response.json();
+    const data = await response.json();
 
-                    if (data.success) {
-                        alert('✅ Registrasi berhasil! Silakan login.');
-                        setCurrentPage('login');
-                    } else {
-                        setError(data.error);
-                    }
-                } catch (error) {
-                    setError('Terjadi kesalahan. Silakan coba lagi.');
-                } finally {
-                    setLoading(false);
-                }
-            };
+    if (response.ok) {
+        alert('Registrasi berhasil, Silakan login.');
+        setCurrentPage('login');
+    } else {
+        setError(data.error || 'Registrasi gagal');
+    }
+
+} catch (error) {
+    setError('Terjadi kesalahan. Silakan coba lagi.');
+} finally {
+    setLoading(false);
+}
+
+};
 
             return (
                 <div className="max-w-md mx-auto mt-20">
