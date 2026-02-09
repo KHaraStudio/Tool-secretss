@@ -1,15 +1,17 @@
 {
   "name": "notes-app",
   "version": "1.0.0",
-  "description": "Aplikasi Catatan dengan Authentication & Encrypted JSON Database",
+  "description": "Aplikasi Catatan dengan Authentication",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
-    "@upstash/redis": "^1.36.2",
+    "@neondatabase/serverless": "^0.9.0",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.2"
   }
 }
