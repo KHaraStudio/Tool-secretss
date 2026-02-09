@@ -1,0 +1,13 @@
+{
+  "name": "notes-app",
+  "version": "1.0.0",
+  "description": "Aplikasi Catatan dengan Authentication & Encrypted JSON Database",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

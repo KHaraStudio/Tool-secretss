@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Catatan</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const API_URL = window.location.origin;
+
+        // ============ MAIN APP COMPONENT ============
+        function App() {
+            const [currentPage, setCurrentPage] = useState('login');
+            const [token, setToken] = useState(null);
+            const [user, setUser] = useState(null);
+
+            useEffect(() => {
+                const savedToken = localStorage.getItem('token');
+                const savedUser = localStorage.getItem('user');
+                
+                if (savedToken && savedUser) {
+                    setToken(savedToken);
+                    setUser(JSON.parse(savedUser));
+                    setCurrentPage('app');
+                }
+            }, []);
+
+            const handleLogout = () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setToken(null);
+                setUser(null);
+                setCurrentPage('login');
+            };
+
+            return (
+                <div className="min-h-screen py-8 px-4">
+                    {currentPage === 'login' && (
+                        <LoginPage 
+                            setCurrentPage={setCurrentPage} 
+                            setToken={setToken} 
+                            setUser={setUser} 
+                        />
+                    )}
+                    {currentPage === 'register' && (
+                        <RegisterPage setCurrentPage={setCurrentPage} />
+                    )}
+                    {currentPage === 'app' && (
+                        <NotesApp 
+                            user={user} 
+                            token={token} 
+                            handleLogout={handleLogout} 
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // ============ LOGIN PAGE ============
+        function LoginPage({ setCurrentPage, setToken, setUser }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    const response = await fetch(`${API_URL}/api/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        setToken(data.token);
+                        setUser(data.user);
+                        setCurrentPage('app');
+                    } else {
+                        setError(data.error);
+                    }
+                } catch (error) {
+                    setError('Terjadi kesalahan. Silakan coba lagi.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="max-w-md mx-auto mt-20">
+                    <div className="bg-white rounded-2xl shadow-xl p-8">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                                📝 Aplikasi Catatan
+                            </h1>
+                            <p className="text-gray-600">Masuk ke akun Anda</p>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="nama@email.com"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="Minimal 6 karakter"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? 'Memproses...' : 'Masuk'}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-600">
+                                Belum punya akun?{' '}
+                                <button
+                                    onClick={() => setCurrentPage('register')}
+                                    className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                                >
+                                    Daftar di sini
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ REGISTER PAGE ============
+        function RegisterPage({ setCurrentPage }) {
+            const [name, setName] = useState('');
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleRegister = async (e) => {
+                e.preventDefault();
+                setError('');
+
+                if (password !== confirmPassword) {
+                    setError('Password tidak cocok');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    setError('Password minimal 6 karakter');
+                    return;
+                }
+
+                setLoading(true);
+
+                try {
+                    const response = await fetch(`${API_URL}/api/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password, name })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('✅ Registrasi berhasil! Silakan login.');
+                        setCurrentPage('login');
+                    } else {
+                        setError(data.error);
+                    }
+                } catch (error) {
+                    setError('Terjadi kesalahan. Silakan coba lagi.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="max-w-md mx-auto mt-20">
+                    <div className="bg-white rounded-2xl shadow-xl p-8">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+                                Daftar Akun Baru
+                            </h1>
+                            <p className="text-gray-600">Buat akun untuk mulai mencatat</p>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleRegister} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nama Lengkap
+                                </label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="John Doe"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="nama@email.com"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="Minimal 6 karakter"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Konfirmasi Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                    placeholder="Ulangi password"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? 'Memproses...' : 'Daftar Sekarang'}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-600">
+                                Sudah punya akun?{' '}
+                                <button
+                                    onClick={() => setCurrentPage('login')}
+                                    className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                                >
+                                    Masuk di sini
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ NOTES APP ============
+        function NotesApp({ user, token, handleLogout }) {
+            const [selectedDay, setSelectedDay] = useState('');
+            const [noteText, setNoteText] = useState('');
+            const [description, setDescription] = useState('');
+            const [notes, setNotes] = useState([]);
+            const [filterDay, setFilterDay] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+            useEffect(() => {
+                fetchNotes();
+            }, []);
+
+            const fetchNotes = async () => {
+                try {
+                    const response = await fetch(`${API_URL}/api/notes`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        setNotes(data.notes);
+                    }
+                } catch (error) {
+                    console.error('Error fetching notes:', error);
+                }
+            };
+
+            const handleAddNote = async () => {
+                if (!selectedDay || !noteText) {
+                    alert('Pilih hari dan isi catatan terlebih dahulu!');
+                    return;
+                }
+
+                setLoading(true);
+
+                try {
+                    const response = await fetch(`${API_URL}/api/add-note`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            day: selectedDay,
+                            note_text: noteText,
+                            description: description
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        setNotes([data.note, ...notes]);
+                        setSelectedDay('');
+                        setNoteText('');
+                        setDescription('');
+                        alert('✅ Catatan berhasil ditambahkan!');
+                    } else {
+                        alert('❌ Gagal menambah catatan');
+                    }
+                } catch (error) {
+                    alert('❌ Terjadi kesalahan');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleDeleteNote = async (id) => {
+                if (!confirm('Yakin ingin menghapus catatan ini?')) return;
+
+                try {
+                    const response = await fetch(`${API_URL}/api/delete-note`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ id })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        setNotes(notes.filter(note => note.id !== id));
+                        alert('✅ Catatan berhasil dihapus!');
+                    } else {
+                        alert('❌ Gagal menghapus catatan');
+                    }
+                } catch (error) {
+                    alert('❌ Terjadi kesalahan');
+                }
+            };
+
+            const formatDate = (dateString) => {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            const filteredNotes = filterDay 
+                ? notes.filter(note => note.day === filterDay)
+                : notes;
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    {/* Header */}
+                    <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-800">
+                                    📝 Catatan Harian
+                                </h1>
+                                <p className="text-gray-600 mt-1">Selamat datang, <span className="font-semibold">{user.name}</span>!</p>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition duration-200 font-semibold"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Form Tambah Catatan */}
+                    <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                        <h2 className="text-xl font-semibold text-gray-700 mb-4">Tambah Catatan Baru</h2>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Pilih Hari
+                                </label>
+                                <select
+                                    value={selectedDay}
+                                    onChange={(e) => setSelectedDay(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                >
+                                    <option value="">-- Pilih Hari --</option>
+                                    {days.map(day => (
+                                        <option key={day} value={day}>{day}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Catatan
+                                </label>
+                                <textarea
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value)}
+                                    placeholder="Tulis catatan Anda di sini..."
+                                    rows="4"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none outline-none transition"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Keterangan (Opsional)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Contoh: Kerja, Pribadi, Penting"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleAddNote}
+                                disabled={loading}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? 'Menambahkan...' : '➕ Tambah Catatan'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Filter */}
+                    <div className="bg-white rounded-2xl shadow-lg p-4 mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            🔍 Filter berdasarkan Hari
+                        </label>
+                        <select
+                            value={filterDay}
+                            onChange={(e) => setFilterDay(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        >
+                            <option value="">Semua Hari</option>
+                            {days.map(day => (
+                                <option key={day} value={day}>{day}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Daftar Catatan */}
+                    <div className="space-y-4">
+                        <h2 className="text-2xl font-semibold text-gray-800">
+                            Daftar Catatan ({filteredNotes.length})
+                        </h2>
+                        
+                        {filteredNotes.length === 0 ? (
+                            <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                                <div className="text-6xl mb-4">📭</div>
+                                <p className="text-gray-500 text-lg">
+                                    Belum ada catatan. Tambahkan catatan pertama Anda!
+                                </p>
+                            </div>
+                        ) : (
+                            filteredNotes.map(note => (
+                                <div key={note.id} className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition duration-200">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                                                {note.day}
+                                            </span>
+                                            {note.description && (
+                                                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                                                    {note.description}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteNote(note.id)}
+                                            className="text-red-500 hover:text-red-700 font-bold text-2xl transition"
+                                            title="Hapus catatan"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    
+                                    <p className="text-gray-800 text-lg mb-3 whitespace-pre-wrap">
+                                        {note.note_text}
+                                    </p>
+                                    
+                                    <p className="text-sm text-gray-500">
+                                        📅 {formatDate(note.created_at)}
+                                    </p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // ============ RENDER APP ============
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
