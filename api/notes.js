@@ -1,78 +1,26 @@
-const fs = require('fs').promises;
-const path = require('path');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const sql = require("./_db");
+const jwt = require("jsonwebtoken");
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-change-this-32bytes!!';
-const ALGORITHM = 'aes-256-cbc';
-const DB_PATH = path.join('/tmp', 'database.enc');
+const SECRET = process.env.JWT_SECRET || "secret123";
 
-function decrypt(text) {
-  const parts = text.split(':');
-  const iv = Buffer.from(parts.shift(), 'hex');
-  const encryptedText = parts.join(':');
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  
-  return decrypted;
-}
-
-async function readDB() {
+module.exports = async function handler(req, res) {
   try {
-    const encryptedData = await fs.readFile(DB_PATH, 'utf8');
-    const decryptedData = decrypt(encryptedData);
-    return JSON.parse(decryptedData);
-  } catch (error) {
-    return { users: [], notes: [] };
-  }
-}
+    const auth = req.headers.authorization;
+    if (!auth) return res.status(401).json({ error: "No token" });
 
-const verifyToken = (authHeader) => {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Token tidak valid');
-  }
-  const token = authHeader.substring(7);
-  return jwt.verify(token, process.env.JWT_SECRET);
-};
+    const token = auth.split(" ")[1];
+    const user = jwt.verify(token, SECRET);
 
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+    const notes = await sql`
+      SELECT id, title, content, created_at
+      FROM notes
+      WHERE user_id=${user.id}
+      ORDER BY created_at DESC;
+    `;
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+    res.status(200).json(notes);
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const decoded = verifyToken(req.headers.authorization);
-    const userId = decoded.userId;
-
-    const db = await readDB();
-
-    const userNotes = db.notes
-      .filter(note => note.user_id === userId)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    return res.status(200).json({
-      success: true,
-      notes: userNotes
-    });
-
-  } catch (error) {
-    console.error('Error:', error);
-    if (error.name === 'JsonWebTokenError' || error.message === 'Token tidak valid') {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    return res.status(500).json({ error: 'Terjadi kesalahan server' });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
   }
 };
