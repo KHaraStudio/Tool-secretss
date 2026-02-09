@@ -1,29 +1,33 @@
 const sql = require("./_db");
-const jwt = require("jsonwebtoken");
-
-const SECRET = process.env.JWT_SECRET || "secret123";
+const getUser = require("./_auth");
 
 module.exports = async function handler(req, res) {
-  if (req.method !== "POST")
-    return res.status(405).json({ error: "Method not allowed" });
+if (req.method !== "POST")
+return res.status(405).json({ error: "Method not allowed" });
 
-  try {
-    const auth = req.headers.authorization;
-    if (!auth) return res.status(401).json({ error: "No token" });
+try {
+const user = getUser(req);
 
-    const token = auth.split(" ")[1];
-    const user = jwt.verify(token, SECRET);
+if (!user)
+  return res.status(401).json({ error: "Unauthorized" });
 
-    const { title, content } = req.body;
+const { day, note_text, description } = req.body;
 
-    await sql`
-      INSERT INTO notes (user_id, title, content)
-      VALUES (${user.id}, ${title}, ${content});
-    `;
+if (!day || !note_text)
+  return res.status(400).json({ error: "Data tidak lengkap" });
 
-    res.status(200).json({ message: "Note added" });
+const result = await sql`
+  INSERT INTO notes (user_id, day, note_text, description)
+  VALUES (${user.id}, ${day}, ${note_text}, ${description || null})
+  RETURNING *;
+`;
 
-  } catch (err) {
-    res.status(401).json({ error: "Invalid token" });
-  }
+res.status(200).json({
+  success: true,
+  note: result[0]
+});
+
+} catch (err) {
+res.status(500).json({ error: err.message });
+}
 };
